@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>wavefreq</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EDF0; --ink:#0F1B2D; --muted:#4F5F70; --line:#B4C1CB; --accent:#2F55D4; --trace:#2F55D4;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0E1622;--ink:#E4EBF1;--muted:#98A8B8;--line:#2A3A4C;--accent:#7C9BFF;--trace:#7C9BFF}
+}
+:root[data-theme="dark"]{--bg:#0E1622;--ink:#E4EBF1;--muted:#98A8B8;--line:#2A3A4C;--accent:#7C9BFF;--trace:#7C9BFF}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1.125rem;line-height:1.6}
+a{color:var(--accent)}
+a:focus-visible,canvas:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.wrap{max-width:60rem;margin:0 auto;padding:0 1.5rem}
+header{padding-top:3.5rem}
+h1{font-family:var(--display);font-stretch:62%;font-weight:800;font-size:clamp(4.5rem,19vw,12rem);line-height:.85;letter-spacing:-.02em;margin:0}
+.lede{max-width:34rem;margin:1.5rem 0 2rem;color:var(--muted)}
+.scope{display:block;width:100%;height:clamp(140px,26vw,240px);border-top:1px solid var(--line);border-bottom:1px solid var(--line);cursor:ew-resize;touch-action:pan-y}
+.hint{font-family:var(--display);font-size:.9rem;color:var(--muted);margin:.5rem 0 0}
+.hint output{color:var(--ink);font-weight:700}
+h2{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:4.5rem 0 1rem}
+.project{display:grid;grid-template-columns:1fr auto;gap:.25rem 2rem;padding:1.5rem 0;border-top:1px solid var(--line)}
+.project:last-child{border-bottom:1px solid var(--line)}
+.project h3{font-family:var(--display);font-weight:700;font-size:1.35rem;margin:0}
+.project p{grid-column:1;margin:0;max-width:38rem;color:var(--muted)}
+.status{grid-column:2;grid-row:1;font-family:var(--display);font-size:.95rem;color:var(--accent);align-self:baseline;text-align:right}
+@media (max-width:34rem){.project{grid-template-columns:1fr}.status{grid-column:1;grid-row:auto;text-align:left}}
+footer{padding:4.5rem 0 3rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>wavefreq</h1>
+    <p class="lede">Instruments, circuits, and software for making and moving sound. A running record of what I’m building.</p>
+    <canvas id="scope" class="scope" tabindex="0" role="img" aria-label="Animated sine wave. Move the pointer, or use the left and right arrow keys, to change its frequency."></canvas>
+    <p class="hint">Frequency: <output id="hz">440</output> Hz. Drag across the trace to change it.</p>
+  </header>
+
+  <footer>
+    <p>Contact: <a href="mailto:hello@wavefreq.com">hello@wavefreq.com</a></p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var c=document.getElementById('scope'),ctx=c.getContext('2d'),out=document.getElementById('hz');
+  var freq=440,target=440,phase=0,last=0;
+  var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){var r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=r.width*d;c.height=r.height*d;ctx.setTransform(d,0,0,d,0,0)}
+  function draw(t){
+    var dt=Math.min((t-last)/1000||0,.05);last=t;
+    freq+=(target-freq)*Math.min(1,dt*6);
+    if(!still)phase+=dt*freq*0.02;
+    var w=c.clientWidth,h=c.clientHeight,cycles=freq/110;
+    var s=getComputedStyle(document.documentElement);
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle=s.getPropertyValue('--line');ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+    ctx.strokeStyle=s.getPropertyValue('--trace');ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.beginPath();
+    for(var x=0;x<=w;x+=2){
+      var y=h/2+Math.sin((x/w)*cycles*Math.PI*2-phase*6)*h*.36;
+      x?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+    out.textContent=Math.round(freq);
+    if(!still||Math.abs(target-freq)>.5)requestAnimationFrame(draw);
+  }
+  function set(clientX){var r=c.getBoundingClientRect();target=Math.round(110+((clientX-r.left)/r.width)*1650);target=Math.max(110,Math.min(1760,target));if(still)requestAnimationFrame(draw)}
+  var down=false;
+  c.addEventListener('pointerdown',function(e){down=true;c.setPointerCapture(e.pointerId);set(e.clientX)});
+  c.addEventListener('pointermove',function(e){if(down||e.pointerType==='mouse')set(e.clientX)});
+  c.addEventListener('pointerup',function(){down=false});
+  c.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'){target=Math.min(1760,target+40);e.preventDefault()}
+    if(e.key==='ArrowLeft'){target=Math.max(110,target-40);e.preventDefault()}
+    if(still)requestAnimationFrame(draw);
+  });
+  window.addEventListener('resize',function(){size();if(still)requestAnimationFrame(draw)});
+  size();requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
